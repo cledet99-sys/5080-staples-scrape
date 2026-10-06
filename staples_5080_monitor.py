@@ -129,12 +129,11 @@ def main():
     previous = load_previous_state()
     previous_stock = bool(previous.get("in_stock", False))
 
-    print(f"Monitoring Staples item {ITEM}")
-    print(f"Check interval: {CHECK_INTERVAL}s")
-    print(URL)
+    print(f"Checking Staples item {ITEM}")
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
+
         page = browser.new_page(
             viewport={"width": 1440, "height": 1200},
             user_agent=(
@@ -145,25 +144,20 @@ def main():
         )
 
         try:
-            while True:
-                try:
-                    in_stock, price = check_page(page)
-                    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    print(f"[{now}] in_stock={in_stock} price={price}")
+            in_stock, price = check_page(page)
 
-                    # Only alert on an actual transition from unavailable -> available.
-                    if in_stock and not previous_stock:
-                        notify_ntfy(price)
+            print(f"in_stock={in_stock}")
+            print(f"price={price}")
 
-                    save_state(in_stock, price)
-                    previous_stock = in_stock
+            # Alert only when changing from out-of-stock to in-stock.
+            if in_stock and not previous_stock:
+                notify_ntfy(price)
 
-                except Exception as exc:
-                    print(f"Check failed: {type(exc).__name__}: {exc}")
+            save_state(in_stock, price)
 
-                time.sleep(CHECK_INTERVAL)
         finally:
             browser.close()
+
 
 if __name__ == "__main__":
     main()
